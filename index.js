@@ -1,3 +1,4 @@
+const { parse, format, addHours, differenceInHours, isValid } = require('date-fns');
 const readline = require('readline');
 const fs = require('fs');
 
@@ -33,39 +34,42 @@ function timeToMinutes(timeString) {
 }
 
 function minutesToDifficulty(minutes) {
-  if (minutes <= 5) return 1;
-  if (minutes <= 15) return 2;
-  if (minutes <= 30) return 3;
-  if (minutes <= 45) return 4;
-  if (minutes <= 60) return 5;
-  if (minutes <= 80) return 6;
-  if (minutes <= 100) return 7;
-  if (minutes <= 120) return 8;
-  if (minutes <= 165) return 9;
-  if (minutes <= 240) return 10;
+  if (minutes <= 7) return 1;
+  if (minutes <= 20) return 2;
+  if (minutes <= 45) return 3;
+  if (minutes <= 70) return 4;
+  if (minutes <= 90) return 5;
+  if (minutes <= 120) return 6;
+  if (minutes <= 150) return 7;
+  if (minutes <= 180) return 8;
+  if (minutes <= 250) return 9;
+  if (minutes <= 360) return 10;
   return null;
 }
 
 function parseDueDate(dueDateString) {
   if (!dueDateString) return null;
 
+  const dateFormat = 'MM dd HH yyyy';
   const now = new Date();
   const currentYear = now.getFullYear();
-  
-  let [month, day, hour, year] = dueDateString.split(' ').map(Number);
-  
-  if (isNaN(year)) {
-    year = currentYear;
+
+  let parsedDate = parse(dueDateString + ' ' + currentYear, dateFormat, new Date());
+
+  if (!isValid(parsedDate)) {
+    console.log("Invalid date format. Please use MM DD HH [YYYY]");
+    return null;
   }
 
-  return new Date(year, month - 1, day, hour);
+  return parsedDate;
 }
 
-function calculateUrgency(dueDate) {
-  if (!dueDate) return 1;
+function calculateUrgency(dueDateString) {
+  if (!dueDateString) return 1;
 
   const now = new Date();
-  const hoursUntilDue = (dueDate - now) / (1000 * 60 * 60);
+  const dueDate = new Date(dueDateString);
+  const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
   if (hoursUntilDue <= 0) return 10;  // Overdue tasks get highest urgency
   if (hoursUntilDue <= 12) return 10;
@@ -84,7 +88,7 @@ function calculateUrgency(dueDate) {
 async function inputTask() {
   console.log("\nEnter task details (or type 'done' to finish):");
   const taskName = await askQuestion("Task Name: ");
-  
+
   if (taskName.toLowerCase() === 'done') {
     return false;
   }
@@ -126,15 +130,16 @@ function classifyTask(task) {
 
 function displayTasks() {
   console.log("\nCurrent tasks:");
+  const now = new Date();
   sortTasks().forEach((task, index) => {
     const urgency = calculateUrgency(task.dueDate);
     const classification = classifyTask(task);
-    const now = new Date();
-    const isOverdue = task.dueDate && task.dueDate < now;
+    const dueDate = new Date(task.dueDate);
+    const isOverdue = dueDate && dueDate <= now;
 
     console.log(`${index + 1}. ${task.taskName}${isOverdue ? ' \x1b[31mOVERDUE\x1b[0m' : ''}`);
     console.log(`   Time Estimate: ${task.timeEstimate}, Difficulty: ${task.difficulty}, Urgency: ${urgency}, Importance: ${task.importance}`);
-    console.log(`   Due Date: ${task.dueDate ? task.dueDate.toLocaleString() : 'Not set'}`);
+    console.log(`   Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
     console.log(`   Classification: ${classification}`);
     console.log();
   });
@@ -143,7 +148,7 @@ function displayTasks() {
 async function deleteTask() {
   displayTasks();
   const indexToDelete = parseInt(await askQuestion("Enter the number of the task to delete (or 0 to cancel): ")) - 1;
-  
+
   if (indexToDelete === -1) {
     console.log("Deletion cancelled.");
     return;
@@ -161,7 +166,7 @@ async function deleteTask() {
 async function updateDueDate() {
   displayTasks();
   const indexToUpdate = parseInt(await askQuestion("Enter the number of the task to update due date (or 0 to cancel): ")) - 1;
-  
+
   if (indexToUpdate === -1) {
     console.log("Update cancelled.");
     return;
@@ -169,11 +174,21 @@ async function updateDueDate() {
 
   if (indexToUpdate >= 0 && indexToUpdate < tasks.length) {
     const task = tasks[indexToUpdate];
-    console.log(`Current due date for "${task.taskName}": ${task.dueDate ? task.dueDate.toLocaleString() : 'Not set'}`);
-    const newDueDateString = await askQuestion("Enter new due date (MM DD HH [YYYY], or leave blank to remove): ");
-    
-    task.dueDate = parseDueDate(newDueDateString);
-    console.log(`Updated due date for "${task.taskName}" to ${task.dueDate ? task.dueDate.toLocaleString() : 'Not set'}`);
+    console.log(`Current due date for "${task.taskName}": ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
+    const newDueDateString = await askQuestion("Enter new due date (YYYY-MM-DD HH:mm, or leave blank to remove): ");
+
+    if (newDueDateString.trim() === '') {
+      task.dueDate = null;
+    } else {
+      const newDueDate = new Date(newDueDateString);
+      if (isNaN(newDueDate.getTime())) {
+        console.log("Invalid date format. Please use YYYY-MM-DD HH:mm");
+        return;
+      }
+      task.dueDate = newDueDate.toISOString();
+    }
+
+    console.log(`Updated due date for "${task.taskName}" to ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
     saveTasks();
   } else {
     console.log("Invalid task number.");
@@ -181,7 +196,12 @@ async function updateDueDate() {
 }
 
 async function main() {
-  console.log("Welcome to the Eisenhower Matrix Task Prioritizer!");
+  console.log("Willkommen à ...");
+  console.log(`                                                          
+    ┏┓┳┳┳┓┏┓  ┳┓┏┓  ┳┓┏┓┳┳┓┏┓┳┓╻╻
+    ┃ ┃┃┣┫┣   ┃┃┣   ┣┫┃┃┃┃┃┣┫┃┃┃┃
+    ┗┛┗┛┻┛┗┛  ┻┛┗┛  ┛┗┗┛┛ ┗┛┗┛┗••                                                                                                                                                                                                               
+`);
   loadTasks();
 
   while (true) {
@@ -199,7 +219,7 @@ async function main() {
         console.log("\nEnter your tasks, estimated time to completion, due date, and importance.");
         console.log("Time should be in HH:MM format. Due date should be in MM DD HH [YYYY] format.");
         console.log("Importance is on a scale of 1-10. Type 'done' when you've finished entering tasks.");
-        while (await inputTask()) {}
+        while (await inputTask()) { }
         break;
       case '2':
         displayTasks();
