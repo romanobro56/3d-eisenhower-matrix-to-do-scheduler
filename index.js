@@ -175,19 +175,11 @@ async function updateDueDate() {
   if (indexToUpdate >= 0 && indexToUpdate < tasks.length) {
     const task = tasks[indexToUpdate];
     console.log(`Current due date for "${task.taskName}": ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
-    const newDueDateString = await askQuestion("Enter new due date (YYYY-MM-DD HH:mm, or leave blank to remove): ");
+    const dueDateString = await askQuestion("Due date (MM DD HH [YYYY], or leave blank if no due date): ");
+    const dueDate = parseDueDate(dueDateString);
 
-    if (newDueDateString.trim() === '') {
-      task.dueDate = null;
-    } else {
-      const newDueDate = new Date(newDueDateString);
-      if (isNaN(newDueDate.getTime())) {
-        console.log("Invalid date format. Please use YYYY-MM-DD HH:mm");
-        return;
-      }
-      task.dueDate = newDueDate.toISOString();
-    }
-
+    task.dueDate = dueDate;
+    
     console.log(`Updated due date for "${task.taskName}" to ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
     saveTasks();
   } else {
