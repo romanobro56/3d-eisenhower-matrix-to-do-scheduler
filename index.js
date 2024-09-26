@@ -1,6 +1,14 @@
-const { parse, format, addHours, differenceInHours, isValid } = require('date-fns');
-const readline = require('readline');
-const fs = require('fs');
+import { parse, isValid } from 'date-fns'
+import * as readline from 'readline'
+import * as fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import open from 'open';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const referencePath = path.join(__dirname, 'ImportanceReference.png');
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -30,20 +38,20 @@ function saveTasks() {
 
 function timeToMinutes(timeString) {
   const [hours, minutes] = timeString.split(':').map(Number);
-  return (hours * 60 + minutes) * 1.5;
+  return (hours * 60 + minutes) * 1.4;
 }
 
 function minutesToDifficulty(minutes) {
-  if (minutes <= 7) return 1;
+  if (minutes <= 10) return 1;
   if (minutes <= 20) return 2;
   if (minutes <= 45) return 3;
-  if (minutes <= 70) return 4;
-  if (minutes <= 90) return 5;
+  if (minutes <= 65) return 4;
+  if (minutes <= 95) return 5;
   if (minutes <= 120) return 6;
-  if (minutes <= 150) return 7;
-  if (minutes <= 180) return 8;
-  if (minutes <= 250) return 9;
-  if (minutes <= 360) return 10;
+  if (minutes <= 180) return 7;
+  if (minutes <= 300) return 8;
+  if (minutes <= 570) return 9;
+  if (minutes <= 720) return 10;
   return null;
 }
 
@@ -187,6 +195,14 @@ async function updateDueDate() {
   }
 }
 
+async function openReferenceImage() {
+  open(referencePath).then(() => {
+    console.log('Image opened successfully');
+  }).catch((err) => {
+    console.error('An error occurred:', err);
+  });
+}
+
 async function main() {
   console.clear();
   console.log("Welcome to...");
@@ -203,9 +219,10 @@ async function main() {
     console.log("2. View tasks");
     console.log("3. Delete a task");
     console.log("4. Update task due date");
-    console.log("5. Exit");
+    console.log("5. View reference for importance");
+    console.log("6. Exit");
 
-    const choice = await askQuestion("Enter your choice (1-5): ");
+    const choice = await askQuestion("Enter your choice (1-6): ");
 
     switch (choice) {
       case '1':
@@ -224,6 +241,9 @@ async function main() {
         await updateDueDate();
         break;
       case '5':
+        await openReferenceImage();
+        break;
+      case '6':
         console.log("Thank you for using the Eisenhower Matrix Task Prioritizer. Goodbye!");
         rl.close();
         return;
