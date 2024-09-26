@@ -137,7 +137,7 @@ function displayTasks() {
     const dueDate = new Date(task.dueDate);
     const isOverdue = dueDate && dueDate <= now;
 
-    console.log(`${index + 1}. ${task.taskName}${isOverdue ? ' \x1b[31mOVERDUE\x1b[0m' : ''}`);
+    console.log(`\x1b[1m\x1b[94m${index + 1}. ${task.taskName}\x1b[0m${isOverdue ? ' \x1b[31mOVERDUE\x1b[0m' : ''}`);
     console.log(`   Time Estimate: ${task.timeEstimate}, Difficulty: ${task.difficulty}, Urgency: ${urgency}, Importance: ${task.importance}`);
     console.log(`   Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
     console.log(`   Classification: ${classification}`);
@@ -188,11 +188,12 @@ async function updateDueDate() {
 }
 
 async function main() {
-  console.log("Willkommen à ...");
+  console.clear();
+  console.log("Welcome to...");
   console.log(`                                                          
-    ┏┓┳┳┳┓┏┓  ┳┓┏┓  ┳┓┏┓┳┳┓┏┓┳┓╻╻
-    ┃ ┃┃┣┫┣   ┃┃┣   ┣┫┃┃┃┃┃┣┫┃┃┃┃
-    ┗┛┗┛┻┛┗┛  ┻┛┗┛  ┛┗┗┛┛ ┗┛┗┛┗••                                                                                                                                                                                                               
+┏┳┓┓┏┏┓  ┏┓┳┳┳┓┏┓╻╻
+ ┃ ┣┫┣   ┃ ┃┃┣┫┣ ┃┃
+ ┻ ┛┗┗┛  ┗┛┗┛┻┛┗┛••                                                                                                                                                                                                
 `);
   loadTasks();
 
