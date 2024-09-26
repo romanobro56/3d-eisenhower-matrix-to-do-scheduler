@@ -149,7 +149,7 @@ function displayTasks() {
     const urgency = calculateUrgency(task.dueDate);
     const classification = classifyTask(task);
 
-    const dueDate = task.dueDate? new Date(task.dueDate): null
+    const dueDate = task.dueDate ? new Date(task.dueDate) : null
     const isOverdue = dueDate && dueDate <= now;
 
     console.log(`\x1b[1m\x1b[94m${index + 1}. ${task.taskName}\x1b[0m${isOverdue ? ' \x1b[31mOVERDUE\x1b[0m' : ''}`);
@@ -194,7 +194,7 @@ async function updateDueDate() {
     const dueDate = parseDueDate(dueDateString);
 
     task.dueDate = dueDate;
-    
+
     console.log(`Updated due date for "${task.taskName}" to ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
     saveTasks();
   } else {
@@ -202,12 +202,36 @@ async function updateDueDate() {
   }
 }
 
+async function updateTimeEstimate() {
+  displayTasks();
+  const indexToUpdate = parseInt(await askQuestion("Enter the number of the task to update time estimate (or 0 to cancel): ")) - 1;
+
+  if (indexToUpdate === -1) {
+    console.log("Update cancelled.");
+    return;
+  }
+
+  if (indexToUpdate >= 0 && indexToUpdate < tasks.length) {
+    const task = tasks[indexToUpdate];
+    console.log(`Current time estimate for "${task.taskName}": ${task.timeEstimate}`);
+    const timeEstimate = await askQuestion("Estimated time to completion (HH:MM format): ");
+    const minutes = timeToMinutes(timeEstimate);
+    const difficulty = minutesToDifficulty(minutes);
+
+    if (difficulty === null) {
+      console.log("Tasks this large should be broken up into smaller subtasks. Please try again.");
+      return true;
+    }
+
+    task.timeEstimate = timeEstimate
+    task.difficulty = difficulty
+    console.log(`Updated time estimate for "${task.taskName}" to ${timeEstimate}`);
+    saveTasks();
+  }
+}
+
 async function openReferenceImage() {
-  open(referencePath).then(() => {
-    console.log('Image opened successfully');
-  }).catch((err) => {
-    console.error('An error occurred:', err);
-  });
+  open(referencePath)
 }
 
 async function main() {
@@ -227,9 +251,10 @@ async function main() {
     console.log("3. Delete a task");
     console.log("4. Update task due date");
     console.log("5. View reference for importance");
-    console.log("6. Exit");
+    console.log("6. Update task time estimate");
+    console.log("7. Exit");
 
-    const choice = await askQuestion("Enter your choice (1-6): ");
+    const choice = await askQuestion("Enter your choice (1-7): ");
 
     switch (choice) {
       case '1':
@@ -251,6 +276,9 @@ async function main() {
         await openReferenceImage();
         break;
       case '6':
+        await updateTimeEstimate();
+        break;
+      case '7':
         console.log("Thank you for using the Eisenhower Matrix Task Prioritizer. Goodbye!");
         rl.close();
         return;
