@@ -112,7 +112,13 @@ async function inputTask() {
 
   const dueDateString = await askQuestion("Due date (MM DD HH [YYYY], or leave blank if no due date): ");
   const dueDate = parseDueDate(dueDateString);
-  const importance = parseInt(await askQuestion("Importance (1-10, 10 is most important): "));
+  let importance = await askQuestion("Importance (1-10, 10 is most important) (or type 'x' to bring up importance reference): ");
+  if (importance === 'x') {
+    openReferenceImage()
+    importance = parseInt(await askQuestion("Importance (1-10, 10 is most important):"));
+  } else {
+    importance = parseInt(importance)
+  }
 
   tasks.push({ taskName, difficulty, dueDate, importance, timeEstimate });
   saveTasks();
@@ -142,13 +148,14 @@ function displayTasks() {
   sortTasks().forEach((task, index) => {
     const urgency = calculateUrgency(task.dueDate);
     const classification = classifyTask(task);
-    const dueDate = new Date(task.dueDate);
+
+    const dueDate = task.dueDate? new Date(task.dueDate): null
     const isOverdue = dueDate && dueDate <= now;
 
     console.log(`\x1b[1m\x1b[94m${index + 1}. ${task.taskName}\x1b[0m${isOverdue ? ' \x1b[31mOVERDUE\x1b[0m' : ''}`);
     console.log(`   Time Estimate: ${task.timeEstimate}, Difficulty: ${task.difficulty}, Urgency: ${urgency}, Importance: ${task.importance}`);
     console.log(`   Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
-    console.log(`   Classification: ${classification}`);
+    console.log(`   Eisenhower's Classification: ${classification}`);
     console.log();
   });
 }
