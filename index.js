@@ -51,7 +51,7 @@ function minutesToDifficulty(minutes) {
   if (minutes <= 180) return 7;
   if (minutes <= 300) return 8;
   if (minutes <= 570) return 9;
-  if (minutes <= 720) return 10;
+  if (minutes <= 1000) return 10;
   return null;
 }
 
@@ -72,25 +72,83 @@ function parseDueDate(dueDateString) {
   return parsedDate;
 }
 
-function calculateUrgency(dueDateString) {
+function calculateUrgency(dueDateString, timeEstimate) {
   if (!dueDateString) return 1;
 
   const now = new Date();
   const dueDate = new Date(dueDateString);
   const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-  if (hoursUntilDue <= 0) return 10;  // Overdue tasks get highest urgency
-  if (hoursUntilDue <= 12) return 10;
-  if (hoursUntilDue <= 24) return 9;
-  if (hoursUntilDue <= 36) return 8;
-  if (hoursUntilDue <= 48) return 7;
-  if (hoursUntilDue <= 60) return 6;
-  if (hoursUntilDue <= 72) return 5;
-  if (hoursUntilDue <= 168) return 4; // 7 days
-  if (hoursUntilDue <= 240) return 3; // 10 days
-  if (hoursUntilDue <= 360) return 2; // 15 days
-  if (hoursUntilDue <= 720) return 1; // 30 days
-  return 1; // More than 30 days
+  // Convert timeEstimate to hours
+  const [hours, minutes] = timeEstimate.split(':').map(Number);
+  const estimatedHours = hours + minutes / 60;
+
+  // Calculate urgency based on time until due date
+  let timeUrgency;
+  if (hoursUntilDue <= 0) timeUrgency = 10;
+  else if (hoursUntilDue <= 24) timeUrgency = 9;
+  else if (hoursUntilDue <= 48) timeUrgency = 8;
+  else if (hoursUntilDue <= 72) timeUrgency = 7;
+  else if (hoursUntilDue <= 120) timeUrgency = 6;
+  else if (hoursUntilDue <= 168) timeUrgency = 5; // 7 days
+  else if (hoursUntilDue <= 336) timeUrgency = 4; // 14 days
+  else if (hoursUntilDue <= 504) timeUrgency = 3; // 21 days
+  else if (hoursUntilDue <= 672) timeUrgency = 2; // 28 days
+  else timeUrgency = 1;
+
+  // Calculate urgency based on estimated time
+  let estimateUrgency;
+  if (estimatedHours >= 10) estimateUrgency = 10;
+  else if (estimatedHours >= 8) estimateUrgency = 9;
+  else if (estimatedHours >= 6) estimateUrgency = 8;
+  else if (estimatedHours >= 4) estimateUrgency = 7;
+  else if (estimatedHours >= 3) estimateUrgency = 6;
+  else if (estimatedHours >= 2) estimateUrgency = 5;
+  else if (estimatedHours >= 1.5) estimateUrgency = 4;
+  else if (estimatedHours >= 1) estimateUrgency = 3;
+  else if (estimatedHours >= 0.5) estimateUrgency = 2;
+  else estimateUrgency = 1;
+
+  // Combine both urgencies, giving more weight to the time-based urgency
+  return Math.round((timeUrgency * 0.6) + (estimateUrgency * 0.4));
+}
+
+async function splitTask() {
+  displayTasks();
+  const indexToSplit = parseInt(await askQuestion("Enter the number of the task to split (or 0 to cancel): ")) - 1;
+
+  if (indexToSplit === -1) {
+    console.log("Split cancelled.");
+    return;
+  }
+
+  if (indexToSplit >= 0 && indexToSplit < tasks.length) {
+    const task = tasks[indexToSplit];
+    console.log(`Splitting task: "${task.taskName}"`);
+
+    const numSubtasks = parseInt(await askQuestion("How many subtasks do you want to create? "));
+
+    for (let i = 0; i < numSubtasks; i++) {
+      const subtaskName = await askQuestion(`Enter name for subtask ${i + 1}: `);
+      const subtaskTimeEstimate = await askQuestion(`Estimated time for subtask ${i + 1} (HH:MM format): `);
+
+      const subtask = {
+        taskName: `${task.taskName} - ${subtaskName}`,
+        difficulty: minutesToDifficulty(timeToMinutes(subtaskTimeEstimate)),
+        dueDate: task.dueDate,
+        importance: task.importance,
+        timeEstimate: subtaskTimeEstimate
+      };
+
+      tasks.push(subtask);
+    }
+
+    tasks.splice(indexToSplit, 1); // Remove the original task
+    console.log("Task split successfully.");
+    saveTasks();
+  } else {
+    console.log("Invalid task number.");
+  }
 }
 
 async function inputTask() {
@@ -126,8 +184,8 @@ async function inputTask() {
 }
 
 function calculatePriority(task) {
-  const urgency = calculateUrgency(task.dueDate);
-  return (11 - task.difficulty) + urgency + task.importance;
+  const urgency = calculateUrgency(task.dueDate, task.timeEstimate);
+  return (urgency * 2) + (task.importance * 2) + (11 - task.difficulty);
 }
 
 function sortTasks() {
@@ -135,7 +193,7 @@ function sortTasks() {
 }
 
 function classifyTask(task) {
-  const urgency = calculateUrgency(task.dueDate);
+  const urgency = calculateUrgency(task.dueDate, task.timeEstimate);
   if (task.importance > 5 && urgency > 5) return "Do";
   if (task.importance > 5 && urgency <= 5) return "Schedule";
   if (task.importance <= 5 && urgency > 5) return "Delegate";
@@ -146,13 +204,13 @@ function displayTasks() {
   console.log("\nCurrent tasks:");
   const now = new Date();
   sortTasks().forEach((task, index) => {
-    const urgency = calculateUrgency(task.dueDate);
+    const urgency = calculateUrgency(task.dueDate, task.timeEstimate);
     const classification = classifyTask(task);
 
     const dueDate = task.dueDate ? new Date(task.dueDate) : null
     const isOverdue = dueDate && dueDate <= now;
 
-    console.log(`\x1b[1m\x1b[94m${index + 1}. ${task.taskName}\x1b[0m${isOverdue ? ' \x1b[31mOVERDUE\x1b[0m' : ''}`);
+    console.log(`\x1b[1m\x1b[96m${index + 1}. ${task.taskName}\x1b[0m${isOverdue ? ' \x1b[31mOVERDUE\x1b[0m' : ''}`);
     console.log(`   Time Estimate: ${task.timeEstimate}, Difficulty: ${task.difficulty}, Urgency: ${urgency}, Importance: ${task.importance}`);
     console.log(`   Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
     console.log(`   Eisenhower's Classification: ${classification}`);
@@ -252,9 +310,10 @@ async function main() {
     console.log("4. Update task due date");
     console.log("5. View reference for importance");
     console.log("6. Update task time estimate");
-    console.log("7. Exit");
+    console.log("7. Split a task into subtasks");
+    console.log("8. Exit");
 
-    const choice = await askQuestion("Enter your choice (1-7): ");
+    const choice = await askQuestion("Enter your choice (1-8): ");
 
     switch (choice) {
       case '1':
@@ -279,6 +338,9 @@ async function main() {
         await updateTimeEstimate();
         break;
       case '7':
+        await splitTask();
+        break;
+      case '8':
         console.log("Thank you for using the Eisenhower Matrix Task Prioritizer. Goodbye!");
         rl.close();
         return;
