@@ -212,7 +212,7 @@ function displayTasks() {
 
     console.log(`\x1b[1m\x1b[96m${index + 1}. ${task.taskName}\x1b[0m${isOverdue ? ' \x1b[31mOVERDUE\x1b[0m' : ''}`);
     console.log(`   Time Estimate: ${task.timeEstimate}, Difficulty: ${task.difficulty}, Urgency: ${urgency}, Importance: ${task.importance}`);
-    console.log(`   Due Date: ${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'}`);
+    console.log(`   Due Date: \x1b[35m${task.dueDate ? new Date(task.dueDate).toLocaleString() : 'Not set'} \x1b[0m`);
     console.log(`   Eisenhower's Classification: ${classification}`);
     console.log();
   });
