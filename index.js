@@ -133,7 +133,7 @@ async function splitTask() {
       const subtaskTimeEstimate = await askQuestion(`Estimated time for subtask ${i + 1} (HH:MM format): `);
 
       const subtask = {
-        taskName: `${task.taskName} - ${subtaskName}`,
+        taskName: `${subtaskName}`,
         difficulty: minutesToDifficulty(timeToMinutes(subtaskTimeEstimate)),
         dueDate: task.dueDate,
         importance: task.importance,
