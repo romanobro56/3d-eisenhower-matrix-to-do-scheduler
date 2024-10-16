@@ -1,4 +1,4 @@
-import { parse, isValid } from 'date-fns'
+import { addDays, differenceInDays, startOfDay, isAfter, isBefore, isEqual } from 'date-fns';
 import * as readline from 'readline'
 import * as fs from 'fs'
 import path from 'path'
@@ -292,6 +292,59 @@ async function openReferenceImage() {
   open(referencePath)
 }
 
+function calculateDailyWorkHours() {
+  const now = startOfDay(new Date());
+  const oneWeekLater = addDays(now, 7);
+  const dailyHours = Array(7).fill(0);
+
+  tasks.forEach(task => {
+    if(!task.dueDate) { return }
+    const dueDate = new Date(task.dueDate);
+    const [hours, minutes] = task.timeEstimate.split(':').map(Number);
+    const totalHours = hours + minutes / 60;
+
+    if (isBefore(dueDate, now) || isEqual(dueDate, now)) {
+      // Task is overdue or due today, add all hours to today
+      dailyHours[0] += totalHours;
+    } else if (isBefore(dueDate, oneWeekLater)) {
+      const daysUntilDue = differenceInDays(dueDate, now);
+      const hoursPerDay = totalHours / (daysUntilDue + 1);
+
+      for (let i = 0; i <= daysUntilDue && i < 7; i++) {
+        dailyHours[i] += hoursPerDay;
+      }
+    }
+  });
+
+  return dailyHours;
+}
+
+function displayDailyWorkHours() {
+  const dailyHours = calculateDailyWorkHours();
+  const daysOfWeek = ['Today', 'Tomorrow', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
+
+  console.log("\nEstimated work hours for the next week:");
+  let weeklyHours = 0
+  dailyHours.forEach((hours, index) => {
+    weeklyHours += hours
+    console.log(`${daysOfWeek[index]}: ${hours.toFixed(1)} hours`);
+  });
+  console.log("You have " + weeklyHours.toFixed(1) + " hours of work total to complete this week")
+  console.log("Theoretically you could complete all your tasks for this week with only " + (weeklyHours / 7).toFixed(1) + " hours of work per day")
+  
+  let totalHours = 0;
+  
+  tasks.forEach((task) => {
+    const [hours, minutes] = task.timeEstimate.split(':').map(Number);
+    const taskHours = hours + minutes / 60;
+    
+    totalHours += taskHours
+  })
+  console.log("You have " + totalHours.toFixed(1) + " hours of work total to complete total")
+  console.log("Theoretically you could complete all your tasks PERIOD with only " + (weeklyHours / 7).toFixed(1) + " hours of work per day")
+}
+
+
 async function main() {
   console.clear();
   console.log("Welcome to...");
@@ -311,9 +364,11 @@ async function main() {
     console.log("5. View reference for importance");
     console.log("6. Update task time estimate");
     console.log("7. Split a task into subtasks");
-    console.log("8. Exit");
+    console.log("8. View daily work hours");
+    console.log("9. Exit");
 
-    const choice = await askQuestion("Enter your choice (1-8): ");
+
+    const choice = await askQuestion("Enter your choice (1-9): ");
 
     switch (choice) {
       case '1':
@@ -341,6 +396,9 @@ async function main() {
         await splitTask();
         break;
       case '8':
+        displayDailyWorkHours();
+        break;
+      case '9':
         console.log("Thank you for using the Eisenhower Matrix Task Prioritizer. Goodbye!");
         rl.close();
         return;
