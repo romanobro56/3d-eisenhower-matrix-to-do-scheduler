@@ -1,10 +1,12 @@
-import { addDays, differenceInDays, startOfDay, isAfter, isBefore, isEqual } from 'date-fns';
+import { parse, addDays, differenceInDays, startOfDay, isAfter, isBefore, isEqual, format, isToday, isTomorrow, isValid} from 'date-fns';
 import * as readline from 'readline'
 import * as fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import open from 'open';
+import chalk from 'chalk';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -110,7 +112,7 @@ function calculateUrgency(dueDateString, timeEstimate) {
   else estimateUrgency = 1;
 
   // Combine both urgencies, giving more weight to the time-based urgency
-  return Math.round((timeUrgency * 0.6) + (estimateUrgency * 0.4));
+  return Math.round((timeUrgency * 0.5) + (estimateUrgency * 0.5));
 }
 
 async function splitTask() {
@@ -298,7 +300,7 @@ function calculateDailyWorkHours() {
   const dailyHours = Array(7).fill(0);
 
   tasks.forEach(task => {
-    if(!task.dueDate) { return }
+    if (!task.dueDate) { return }
     const dueDate = new Date(task.dueDate);
     const [hours, minutes] = task.timeEstimate.split(':').map(Number);
     const totalHours = hours + minutes / 60;
@@ -321,29 +323,55 @@ function calculateDailyWorkHours() {
 
 function displayDailyWorkHours() {
   const dailyHours = calculateDailyWorkHours();
-  const daysOfWeek = ['Today', 'Tomorrow', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
+  const today = new Date();
+  let weeklyHours = 0;
+  console.log("\nEstimated work hours for the next week:\n");
+  let todayHours = 0
 
-  console.log("\nEstimated work hours for the next week:");
-  let weeklyHours = 0
   dailyHours.forEach((hours, index) => {
-    weeklyHours += hours
-    console.log(`${daysOfWeek[index]}: ${hours.toFixed(1)} hours`);
+    const day = addDays(today, index);
+    let dayLabel;
+
+    if (isToday(day)) {
+      dayLabel = chalk.yellow.bold("Today") + "\t";
+      todayHours = hours
+    } else if (isTomorrow(day)) {
+      dayLabel = chalk.yellow.bold("Tmrw") + "\t";
+    } else {
+      dayLabel = chalk.yellow(format(day, 'EEEE')); // Full day name for other days
+    }
+
+    const dateStr = chalk.yellow(format(day, 'MMM d')); // Date in the format "Mar 15"
+    const coloredHours = hours > 4
+      ? chalk.red(hours.toFixed(2).padStart(5))
+      : hours > 2
+        ? chalk.yellow(hours.toFixed(2).padStart(5))
+        : chalk.green(hours.toFixed(2).padStart(5))
+    console.log(`${dayLabel.padEnd(20)} ${dateStr.padEnd(15)} ${coloredHours} hours`);
+    weeklyHours += hours;
   });
+
+  console.log("\n" + "─".repeat(50));
   console.log("You have " + weeklyHours.toFixed(1) + " hours of work total to complete this week")
-  console.log("Theoretically you could complete all your tasks for this week with only " + (weeklyHours / 7).toFixed(1) + " hours of work per day")
-  
+  console.log("Theoretically you could complete all your tasks for this week with \nonly " + chalk.cyan.bold((weeklyHours / 7).toFixed(1) + " hours of work per day"))
+  console.log("\nBut rather because of your time management until this day, you have\n" + chalk.red.bold(todayHours.toFixed(1) + " hours") + " of work to complete today.")
+  if(todayHours < (weeklyHours / 7) + 1.5) {
+    console.log("Congratulations! You have been managing your time really well lately!! Here's a cookie! 🍪")
+  } else {
+    console.log("It seems like you have been managing your time somewhat poorly. No cookie today. ❌🙅‍♂️❌")
+  }
+
+
   let totalHours = 0;
-  
   tasks.forEach((task) => {
     const [hours, minutes] = task.timeEstimate.split(':').map(Number);
-    const taskHours = hours + minutes / 60;
-    
-    totalHours += taskHours
-  })
-  console.log("You have " + totalHours.toFixed(1) + " hours of work total to complete total")
-  console.log("Theoretically you could complete all your tasks PERIOD with only " + (weeklyHours / 7).toFixed(1) + " hours of work per day")
-}
+    totalHours += hours + minutes / 60;
+  });
 
+  console.log("\n" + "─".repeat(50));
+  console.log("You have " + totalHours.toFixed(1) + " hours of work total to complete total")
+  console.log("Theoretically you could complete all your tasks " + chalk.cyan.bold("PERIOD") + " with \nonly " + chalk.cyan.bold((weeklyHours / 7).toFixed(1) + " hours of work per day"))
+}
 
 async function main() {
   console.clear();
