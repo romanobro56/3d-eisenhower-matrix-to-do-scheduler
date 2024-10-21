@@ -186,8 +186,27 @@ async function inputTask() {
 }
 
 function calculatePriority(task) {
+  const now = new Date();
+  const dueDate = task.dueDate ? new Date(task.dueDate) : null;
+  const timeUntilDue = dueDate ? (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24) : Infinity;
+  
   const urgency = calculateUrgency(task.dueDate, task.timeEstimate);
-  return (urgency * 2) + (task.importance * 2) + (11 - task.difficulty);
+  
+  // Convert timeEstimate to hours
+  const [hours, minutes] = task.timeEstimate.split(':').map(Number);
+  const estimatedHours = hours + minutes / 60;
+
+  // Prioritize tasks due soon and tasks that take longer
+  const dueDateFactor = dueDate ? Math.max(0, 10 - timeUntilDue) : 0;
+  const timeFactor = Math.min(10, estimatedHours);
+
+  return (
+    urgency * 3 +
+    task.importance * 2 +
+    dueDateFactor * 2 +
+    timeFactor +
+    (11 - task.difficulty)
+  );
 }
 
 function sortTasks() {
